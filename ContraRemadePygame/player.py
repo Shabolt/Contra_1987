@@ -1,6 +1,8 @@
-import pygame
-from constants import LARGURA, ALTURA, AZUL
 import math
+
+import pygame
+from constants import ALTURA, AZUL, CHAO_Y, LARGURA
+
 
 class Bullet:
     def __init__(self, x, y, dir_x, dir_y):
@@ -20,6 +22,10 @@ class Bullet:
             self.vel_y = self.velocidade * dir_y
             self.largura = 5 if dir_x == 0 else 10
             self.altura = 10 if dir_x == 0 else 5
+
+    @property
+    def rect(self):
+        return pygame.Rect(self.x, self.y, self.largura, self.altura)
 
     def atualizar(self):
         self.x += self.vel_x
@@ -45,6 +51,29 @@ class Player:
         self.largura_normal = 40
         self.altura_normal = 60
         self.deitado = False
+        self.vidas = 3
+        self.invencivel = 0  # frames de invencibilidade após levar dano
+
+    @property
+    def rect(self):
+        return pygame.Rect(self.x, self.y, self.largura, self.altura)
+
+    def levar_dano(self):
+        # Enquanto estiver invencível, ignora o dano
+        if self.invencivel > 0:
+            return
+
+        self.vidas -= 1
+        self.invencivel = 120  # 2 segundos a 60 FPS
+
+        # Reaparece caindo do topo, em pé
+        self.deitado = False
+        self.largura = self.largura_normal
+        self.altura = self.altura_normal
+        self.x = 100
+        self.y = 0
+        self.vel_y = 0
+        self.no_chao = False
 
     def atualizar(self, teclas):
         # Movimento horizontal para a esquerda
@@ -119,32 +148,34 @@ class Player:
                 tiro_y = self.y + offset_y
 
             self.tiros.append(Bullet(tiro_x, tiro_y, direcao_x, direcao_y))
-            self.cooldown_tiro = 15            
+            self.cooldown_tiro = 15
 
         # Aplica gravidade
         self.vel_y += self.gravidade
         self.y += self.vel_y
 
-        # Limite temporário do chão (y = 450)
-        chao_y = 450
-        if self.y + self.altura >= chao_y:
-            self.y = chao_y - self.altura
+        # Limite temporário do chão
+        if self.y + self.altura >= CHAO_Y:
+            self.y = CHAO_Y - self.altura
             self.vel_y = 0
             self.no_chao = True
 
         if self.cooldown_tiro > 0:
             self.cooldown_tiro -= 1
 
-        
+        if self.invencivel > 0:
+            self.invencivel -= 1
 
+        # Remove tiros que saíram da tela (horizontal e vertical)
         for tiro in self.tiros[:]:
             tiro.atualizar()
-            if tiro.x < 0 or tiro.x > LARGURA:
+            if tiro.x < 0 or tiro.x > LARGURA or tiro.y < 0 or tiro.y > ALTURA:
                 self.tiros.remove(tiro)
-        
-            
 
     def desenhar(self, tela):
-        pygame.draw.rect(tela, AZUL, (self.x, self.y, self.largura, self.altura))
+        # Pisca enquanto está invencível
+        piscando = self.invencivel > 0 and (self.invencivel // 5) % 2 == 0
+        if not piscando:
+            pygame.draw.rect(tela, AZUL, (self.x, self.y, self.largura, self.altura))
         for tiro in self.tiros:
             tiro.desenhar(tela)
