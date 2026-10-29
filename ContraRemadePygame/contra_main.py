@@ -1,5 +1,5 @@
 import pygame
-from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, PRETO, VERDE
+from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, MARROM, PRETO, VERDE
 from enemies import GerenciadorInimigos
 from player import Player
 
@@ -35,7 +35,8 @@ while running:
             game_over = True
 
     screen.fill(PRETO)
-    pygame.draw.line(screen, VERDE, (0, CHAO_Y), (LARGURA, CHAO_Y), 2)
+    pygame.draw.rect(screen, MARROM, (0, CHAO_Y, LARGURA, ALTURA - CHAO_Y))
+    pygame.draw.line(screen, VERDE, (0, CHAO_Y), (LARGURA, CHAO_Y), 4)
     inimigos.desenhar(screen)
     jogador.desenhar(screen)
 
