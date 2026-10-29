@@ -79,8 +79,8 @@ class Player:
 
         # Tiro (Left Control) com suporte a mirar para cima (W)
         if teclas[pygame.K_LCTRL] and self.cooldown_tiro == 0:
-            apontando_cima = teclas[pygame.K_w]
-            apontando_baixo = teclas[pygame.K_s] or teclas[pygame.K_DOWN]
+            apontando_cima = teclas[pygame.K_w] and not self.deitado
+            apontando_baixo = (teclas[pygame.K_s] or teclas[pygame.K_DOWN]) and not self.deitado
             movendo_horizontal = teclas[pygame.K_a] or teclas[pygame.K_d] or teclas[pygame.K_LEFT] or teclas[pygame.K_RIGHT]
             
             direcao_x = self.direcao
@@ -99,19 +99,19 @@ class Player:
                 tiro_x = self.x + self.largura // 2 - 2
                 tiro_y = self.y - 10
             elif apontando_baixo and movendo_horizontal:
-                # Diagonal inferior (segurando S + lado)
+                # Diagonal inferior
                 direcao_x = self.direcao
                 direcao_y = 1
                 tiro_x = self.x + self.largura if self.direcao == 1 else self.x - 10
                 tiro_y = self.y + self.altura
             elif apontando_baixo:
-                # Apenas para baixo (segurando apenas S)
+                # Apenas para baixo
                 direcao_x = 0
                 direcao_y = 1
                 tiro_x = self.x + self.largura // 2 - 2
                 tiro_y = self.y + self.altura
             else:
-                # Tiro normal para frente (ou deitado com Left Alt)
+                # Tiro normal para frente (forçado se estiver deitado)
                 direcao_x = self.direcao
                 direcao_y = 0
                 tiro_x = self.x + self.largura if self.direcao == 1 else self.x - 10
