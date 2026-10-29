@@ -1,0 +1,6 @@
+LARGURA = 1240
+ALTURA = 920
+FPS = 60
+
+PRETO = (0, 0, 0)
+AZUL = (0, 100, 255)
