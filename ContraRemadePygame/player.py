@@ -53,6 +53,7 @@ class Player:
         self.deitado = False
         self.vidas = 3
         self.invencivel = 0  # frames de invencibilidade após levar dano
+        self.plataformas = []  # lista de pygame.Rect (injetada pelo main)
 
     @property
     def rect(self):
@@ -154,7 +155,20 @@ class Player:
         self.vel_y += self.gravidade
         self.y += self.vel_y
 
-        # Limite temporário do chão
+        # Colisão com plataformas (só quando caindo)
+        self.no_chao = False
+        if self.vel_y >= 0:
+            jogador_rect = self.rect
+            for plat in self.plataformas:
+                if jogador_rect.colliderect(plat):
+                    # Verifica se os pés do jogador estão perto do topo da plataforma
+                    if jogador_rect.bottom >= plat.top and jogador_rect.bottom <= plat.top + self.vel_y + 10:
+                        self.y = plat.top - self.altura
+                        self.vel_y = 0
+                        self.no_chao = True
+                        break
+
+        # Limite do chão
         if self.y + self.altura >= CHAO_Y:
             self.y = CHAO_Y - self.altura
             self.vel_y = 0

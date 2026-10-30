@@ -1,7 +1,8 @@
 import pygame
-from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, MARROM, PRETO, VERDE
+from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, PRETO
 from enemies import GerenciadorInimigos
 from player import Player
+from scenario import Cenario
 
 pygame.init()
 screen = pygame.display.set_mode((LARGURA, ALTURA))
@@ -11,7 +12,9 @@ clock = pygame.time.Clock()
 fonte = pygame.font.Font(None, 36)
 fonte_grande = pygame.font.Font(None, 96)
 
+cenario = Cenario()
 jogador = Player(100, 300)
+jogador.plataformas = cenario.plataformas
 inimigos = GerenciadorInimigos()
 game_over = False
 
@@ -23,6 +26,7 @@ while running:
         # Reinicia o jogo apertando R na tela de game over
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r and game_over:
             jogador = Player(100, 300)
+            jogador.plataformas = cenario.plataformas
             inimigos = GerenciadorInimigos()
             game_over = False
 
@@ -34,9 +38,8 @@ while running:
         if jogador.vidas <= 0:
             game_over = True
 
-    screen.fill(PRETO)
-    pygame.draw.rect(screen, MARROM, (0, CHAO_Y, LARGURA, ALTURA - CHAO_Y))
-    pygame.draw.line(screen, VERDE, (0, CHAO_Y), (LARGURA, CHAO_Y), 4)
+    # Desenha o cenário (substitui o fundo preto + chão antigo)
+    cenario.desenhar(screen)
     inimigos.desenhar(screen)
     jogador.desenhar(screen)
 
