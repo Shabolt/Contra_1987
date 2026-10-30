@@ -31,9 +31,11 @@ class BalaInimiga:
     def fora_da_tela(self):
         return self.x < -20 or self.x > LARGURA + 20 or self.y < -20 or self.y > ALTURA + 20
 
-    def desenhar(self, tela):
-        pygame.draw.circle(tela, BRANCO, (int(self.x), int(self.y)), self.raio)
-        pygame.draw.circle(tela, VERMELHO, (int(self.x), int(self.y)), self.raio - 2)
+    def desenhar(self, tela, camera_x):
+        # Subtrai o camera_x para desenhar na posição correta da tela
+        pos_x_tela = self.x - camera_x
+        pygame.draw.circle(tela, BRANCO, (int(pos_x_tela), int(self.y)), self.raio)
+        pygame.draw.circle(tela, VERMELHO, (int(pos_x_tela), int(self.y)), self.raio - 2)
 
 
 class Inimigo:
@@ -65,10 +67,12 @@ class Inimigo:
     def atualizar(self, jogador, balas_inimigas):
         pass
 
-    def desenhar(self, tela):
-        pygame.draw.rect(tela, self.cor, self.rect)
+    def desenhar(self, tela, camera_x):
+        # Subtrai o camera_x para desenhar na posição correta da tela
+        pos_x_tela = self.x - camera_x
+        pygame.draw.rect(tela, self.cor, (pos_x_tela, self.y, self.largura, self.altura))
         # "arma" só pra indicar pra onde o inimigo está olhando
-        arma_x = self.x + self.largura if self.direcao == 1 else self.x - 12
+        arma_x = pos_x_tela + self.largura if self.direcao == 1 else pos_x_tela - 12
         pygame.draw.rect(tela, CINZA, (arma_x, self.y + 20, 12, 6))
 
 
@@ -195,8 +199,8 @@ class GerenciadorInimigos:
         self.inimigos = [i for i in self.inimigos if i.vivo and not i.fora_da_tela()]
         self.balas = [b for b in self.balas if not b.fora_da_tela()]
 
-    def desenhar(self, tela):
+    def desenhar(self, tela, camera_x):
         for inimigo in self.inimigos:
-            inimigo.desenhar(tela)
+            inimigo.desenhar(tela, camera_x)
         for bala in self.balas:
-            bala.desenhar(tela)
+            bala.desenhar(tela, camera_x)

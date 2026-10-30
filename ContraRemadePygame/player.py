@@ -77,7 +77,7 @@ class Player:
         self.vel_y = 0
         self.no_chao = False
 
-    def atualizar(self, teclas):
+    def atualizar(self, teclas, plataformas):
         # Captura as teclas
         teclas = pygame.key.get_pressed()
 
@@ -188,7 +188,7 @@ class Player:
             if tiro.x < 0 or tiro.x > LARGURA or tiro.y < 0 or tiro.y > ALTURA:
                 self.tiros.remove(tiro)
 
-    def desenhar(self, tela):
+    def desenhar(self, tela, camera_x):
         # Pisca enquanto está invencível
         piscando = self.invencivel > 0 and (self.invencivel // 5) % 2 == 0
         if not piscando:
