@@ -53,7 +53,9 @@ class Player:
         self.deitado = False
         self.vidas = 3
         self.invencivel = 0  # frames de invencibilidade após levar dano
+        self.vel_x = 0
 
+    # Propriedades hitbox jogador
     @property
     def rect(self):
         return pygame.Rect(self.x, self.y, self.largura, self.altura)
@@ -76,15 +78,29 @@ class Player:
         self.no_chao = False
 
     def atualizar(self, teclas):
-        # Movimento horizontal para a esquerda
-        if teclas[pygame.K_a]:
-            self.x -= self.velocidade
-            self.direcao = -1
+        # Captura as teclas
+        teclas = pygame.key.get_pressed()
 
-        # Movimento horizontal para a direita
-        if teclas[pygame.K_d]:
-            self.x += self.velocidade
-            self.direcao = 1
+        # Movimento Horizontal com travamento autêntico de Contra
+        if self.no_chao:
+            self.vel_x = 0
+
+            if not self.deitado:
+                if teclas[pygame.K_a]:
+                    self.vel_x = -self.velocidade
+                    self.direcao = -1
+
+                elif teclas[pygame.K_d]:
+                    self.vel_x = self.velocidade
+                    self.direcao = 1
+
+        # No ar: o vel_x NÃO é zerado nem modificado pelas teclas A/D.
+                    # Ele mantém rigorosamente o impulso que o jogador tinha ao sair do chão.
+        else:
+            pass
+
+        # Aplica o movimento na posição X
+        self.x += self.vel_x
 
         # Pulo (Espaço ou Seta para Cima)
         if teclas[pygame.K_SPACE] and self.no_chao:
@@ -107,10 +123,10 @@ class Player:
                 self.deitado = False
 
         # Tiro (Left Control) com suporte a mirar para cima (W)
-        if teclas[pygame.K_LCTRL] and self.cooldown_tiro == 0:
+        if teclas[pygame.K_LCTRL] and self.cooldown_tiro == 0 and self.no_chao:
             apontando_cima = teclas[pygame.K_w] and not self.deitado
-            apontando_baixo = (teclas[pygame.K_s] or teclas[pygame.K_DOWN]) and not self.deitado
-            movendo_horizontal = teclas[pygame.K_a] or teclas[pygame.K_d] or teclas[pygame.K_LEFT] or teclas[pygame.K_RIGHT]
+            apontando_baixo = teclas[pygame.K_s] and not self.deitado
+            movendo_horizontal = teclas[pygame.K_a] or teclas[pygame.K_d]
             
             direcao_x = self.direcao
             direcao_y = 0
