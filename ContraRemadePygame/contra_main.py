@@ -3,6 +3,7 @@ from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, PRETO, VERDE
 from enemies import GerenciadorInimigos
 from player import Player
 
+
 pygame.init()
 screen = pygame.display.set_mode((LARGURA, ALTURA))
 pygame.display.set_caption("Contra")

@@ -1,0 +1,15 @@
+-> INIMIGOS:
+    1. O disparo não deve acompanhar o estado de hitbox do player,
+       pode ser apenas horizontal
+
+-> PLAYER:
+    1. Não pode atirar enquanto pula dando o mortal
+    2. Não pode mudar de direção enquanto pula
+    3. Não pode se mover enquanto tá deitado
+
+-> CENÁRIO:
+    1. Adicionar o background
+    2. Adicionar as plataformas
+    3. Adicionar as surfaces e colisões
+    4. Adicionar e programar as torretas
+    5. Adicionar e programar a água
