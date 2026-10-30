@@ -1,7 +1,10 @@
 import pygame
+from scenario import Stage_1
 from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, PRETO, VERDE
 from enemies import GerenciadorInimigos
 from player import Player
+
+camera_x = 0  
 
 pygame.init()
 screen = pygame.display.set_mode((LARGURA, ALTURA))
@@ -14,6 +17,9 @@ fonte_grande = pygame.font.Font(None, 96)
 jogador = Player(100, 300)
 inimigos = GerenciadorInimigos()
 game_over = False
+
+stage1 = Stage_1()
+player = Player(stage1.spawn_pos[0], stage1.spawn_pos[1])
 
 running = True
 while running:
@@ -29,15 +35,17 @@ while running:
     keys = pygame.key.get_pressed()
 
     if not game_over:
-        jogador.atualizar(keys)
+        camera_x = jogador.rect.centerx - LARGURA // 3
+        plataformas_atuais = stage1.obter_plataformas_tela(camera_x)
+        jogador.atualizar(keys, plataformas_atuais)
         inimigos.atualizar(jogador)
         if jogador.vidas <= 0:
             game_over = True
 
     screen.fill(PRETO)
-    pygame.draw.line(screen, VERDE, (0, CHAO_Y), (LARGURA, CHAO_Y), 2)
-    inimigos.desenhar(screen)
-    jogador.desenhar(screen)
+    inimigos.desenhar(screen, camera_x)
+    jogador.desenhar(screen, camera_x)
+    stage1.desenhar(screen, camera_x, jogador, inimigos)
 
     # HUD
     hud = fonte.render(f"VIDAS: {max(jogador.vidas, 0)}    PONTOS: {inimigos.pontos}", True, BRANCO)
