@@ -32,12 +32,12 @@ while running:
             inimigos = GerenciadorInimigos()
             game_over = False
 
-    keys = pygame.key.get_pressed()
+    teclas = pygame.key.get_pressed()
 
     if not game_over:
         camera_x = jogador.rect.centerx - LARGURA // 3
         plataformas_atuais = stage1.obter_plataformas_tela(camera_x)
-        jogador.atualizar(keys, plataformas_atuais)
+        jogador.atualizar(teclas, plataformas_atuais)
         inimigos.atualizar(jogador)
         if jogador.vidas <= 0:
             game_over = True
