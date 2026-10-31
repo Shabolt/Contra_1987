@@ -1,7 +1,8 @@
 import os
-import pygame
 
-from constants import LARGURA, ALTURA
+import pygame
+from constants import ALTURA, LARGURA
+
 
 class Stage_1:
     def __init__(self):

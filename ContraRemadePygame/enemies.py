@@ -28,8 +28,10 @@ class BalaInimiga:
         self.x += self.vel_x
         self.y += self.vel_y
 
-    def fora_da_tela(self):
-        return self.x < -20 or self.x > LARGURA + 20 or self.y < -20 or self.y > ALTURA + 20
+    def fora_da_tela(self, camera_x):
+        # Verifica se saiu da área visível (coordenadas de mundo → tela)
+        tela_x = self.x - camera_x
+        return tela_x < -50 or tela_x > LARGURA + 50 or self.y < -50 or self.y > ALTURA + 50
 
     def desenhar(self, tela, camera_x):
         # Subtrai o camera_x para desenhar na posição correta da tela
@@ -61,7 +63,7 @@ class Inimigo:
         if self.vida <= 0:
             self.vivo = False
 
-    def fora_da_tela(self):
+    def fora_da_tela(self, camera_x):
         return False
 
     def atualizar(self, jogador, balas_inimigas):
@@ -103,8 +105,10 @@ class Soldado(Inimigo):
             self.vel_y = 0
             self.no_chao = True
 
-    def fora_da_tela(self):
-        return self.x < -100 or self.x > LARGURA + 100
+    def fora_da_tela(self, camera_x):
+        # Saiu da área visível por uma margem grande
+        tela_x = self.x - camera_x
+        return tela_x < -200 or tela_x > LARGURA + 200
 
 
 class Atirador(Inimigo):
@@ -145,24 +149,28 @@ class GerenciadorInimigos:
         self.timer_spawn = 60
         self.intervalo_spawn = 90   # frames entre spawns (varia +-30)
         self.max_inimigos = 6
+        self.camera_x = 0  # referência da câmera para spawn/limpeza
 
     def _spawnar(self, jogador):
         lado_esquerdo = random.choice([True, False])
-        x_spawn = -50 if lado_esquerdo else LARGURA + 10
+        # Spawna nas bordas da câmera (área visível), não em coordenadas fixas
+        x_spawn = self.camera_x - 50 if lado_esquerdo else self.camera_x + LARGURA + 10
 
         if random.random() < 0.65:
             direcao = 1 if lado_esquerdo else -1
             self.inimigos.append(Soldado(x_spawn, direcao))
         else:
-            # Escolhe uma posição que não seja em cima do jogador
-            alvo_x = random.randint(100, LARGURA - 140)
+            # Escolhe uma posição na área visível que não seja em cima do jogador
+            alvo_x = random.randint(int(self.camera_x + 100), int(self.camera_x + LARGURA - 140))
             for _ in range(10):
                 if abs(alvo_x - jogador.x) > 300:
                     break
-                alvo_x = random.randint(100, LARGURA - 140)
+                alvo_x = random.randint(int(self.camera_x + 100), int(self.camera_x + LARGURA - 140))
             self.inimigos.append(Atirador(x_spawn, alvo_x))
 
-    def atualizar(self, jogador):
+    def atualizar(self, jogador, camera_x=0):
+        self.camera_x = camera_x
+
         # Spawn
         self.timer_spawn -= 1
         if self.timer_spawn <= 0 and len(self.inimigos) < self.max_inimigos:
@@ -196,8 +204,8 @@ class GerenciadorInimigos:
                 self.balas.remove(bala)
 
         # Limpeza
-        self.inimigos = [i for i in self.inimigos if i.vivo and not i.fora_da_tela()]
-        self.balas = [b for b in self.balas if not b.fora_da_tela()]
+        self.inimigos = [i for i in self.inimigos if i.vivo and not i.fora_da_tela(camera_x)]
+        self.balas = [b for b in self.balas if not b.fora_da_tela(camera_x)]
 
     def desenhar(self, tela, camera_x):
         for inimigo in self.inimigos:

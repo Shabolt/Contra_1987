@@ -31,8 +31,8 @@ class Bullet:
         self.x += self.vel_x
         self.y += self.vel_y
 
-    def desenhar(self, tela):
-        pygame.draw.rect(tela, (255, 255, 0), (self.x, self.y, self.largura, self.altura))
+    def desenhar(self, tela, camera_x):
+        pygame.draw.rect(tela, (255, 255, 0), (self.x - camera_x, self.y, self.largura, self.altura))
 
 class Player:
     def __init__(self, x, y):
@@ -182,16 +182,16 @@ class Player:
         if self.invencivel > 0:
             self.invencivel -= 1
 
-        # Remove tiros que saíram da tela (horizontal e vertical)
+        # Remove tiros que saíram muito longe do jogador (mundo)
         for tiro in self.tiros[:]:
             tiro.atualizar()
-            if tiro.x < 0 or tiro.x > LARGURA or tiro.y < 0 or tiro.y > ALTURA:
+            if abs(tiro.x - self.x) > LARGURA or tiro.y < -50 or tiro.y > ALTURA + 50:
                 self.tiros.remove(tiro)
 
     def desenhar(self, tela, camera_x):
         # Pisca enquanto está invencível
         piscando = self.invencivel > 0 and (self.invencivel // 5) % 2 == 0
         if not piscando:
-            pygame.draw.rect(tela, AZUL, (self.x, self.y, self.largura, self.altura))
+            pygame.draw.rect(tela, AZUL, (self.x - camera_x, self.y, self.largura, self.altura))
         for tiro in self.tiros:
-            tiro.desenhar(tela)
+            tiro.desenhar(tela, camera_x)
