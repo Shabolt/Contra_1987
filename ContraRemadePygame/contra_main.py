@@ -5,12 +5,6 @@ from player import Player
 from scenario import Stage_1
 
 pygame.init()
-
-
-
-
-
- quit...
 screen = pygame.display.set_mode((LARGURA, ALTURA))
 pygame.display.set_caption("Contra")
 
