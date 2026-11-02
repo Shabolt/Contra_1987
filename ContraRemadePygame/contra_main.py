@@ -36,7 +36,7 @@ while running:
         jogador.atualizar(teclas, plataformas_atuais)
 
         # Para desligar os inimigos, comente a linha abaixo
-        #inimigos.atualizar(jogador, camera_x)
+        inimigos.atualizar(jogador, camera_x)
         
         if jogador.vidas <= 0:
             game_over = True

@@ -1,7 +1,7 @@
 import math
 
 import pygame
-from constants import ALTURA, AZUL, CHAO_Y, LARGURA
+from constants import ALTURA, AZUL, CHAO_Y, LARGURA, ROXO
 
 
 class Bullet:
@@ -117,7 +117,7 @@ class Player:
         if teclas[pygame.K_LALT] and self.no_chao:
             if not self.deitado:
                 self.deitado = True
-                self.altura = 20  # Altura reduzida
+                self.altura = 30  # Altura reduzida
                 self.largura = 70 # Largura maior (esticado)
                 self.y += 30  # Empurra para baixo para compensar a perda de altura
         else:
@@ -154,12 +154,6 @@ class Player:
                 direcao_x = self.direcao
                 direcao_y = 1
                 tiro_x = self.x + self.largura if self.direcao == 1 else self.x - 10
-                tiro_y = self.y + self.altura
-            elif apontando_baixo:
-                # Apenas para baixo
-                direcao_x = 0
-                direcao_y = 1
-                tiro_x = self.x + self.largura // 2 - 2
                 tiro_y = self.y + self.altura
             else:
                 # Tiro normal para frente (forçado se estiver deitado)
@@ -215,6 +209,6 @@ class Player:
         # Pisca enquanto está invencível
         piscando = self.invencivel > 0 and (self.invencivel // 5) % 2 == 0
         if not piscando:
-            pygame.draw.rect(tela, AZUL, (self.x - camera_x, self.y, self.largura, self.altura))
+            pygame.draw.rect(tela, ROXO, (self.x - camera_x, self.y, self.largura, self.altura))
         for tiro in self.tiros:
             tiro.desenhar(tela, camera_x)
