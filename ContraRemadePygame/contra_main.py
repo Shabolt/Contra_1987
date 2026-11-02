@@ -32,9 +32,12 @@ while running:
     teclas = pygame.key.get_pressed()
 
     if not game_over:
-        plataformas_atuais = stage1.obter_plataformas_tela(camera_x)
+        plataformas_atuais = stage1.obter_plataformas_tela(0)
         jogador.atualizar(teclas, plataformas_atuais)
-        inimigos.atualizar(jogador, camera_x)
+
+        # Para desligar os inimigos, comente a linha abaixo
+        #inimigos.atualizar(jogador, camera_x)
+        
         if jogador.vidas <= 0:
             game_over = True
 

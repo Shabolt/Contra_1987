@@ -4,7 +4,7 @@ ALTURA = 920
 FPS = 60
 
 # Altura do chão (temporário, até existir um mapa/fase)
-CHAO_Y = 450
+CHAO_Y = 1000
 
 # Cor = (R, G, B)
 PRETO = (0, 0, 0)

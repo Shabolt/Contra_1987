@@ -43,7 +43,7 @@ class Player:
         self.velocidade = 5
         self.vel_y = 0
         self.gravidade = 0.5
-        self.forca_pulo = -12
+        self.forca_pulo = -16
         self.no_chao = False
         self.direcao = 1  # 1 para direita, -1 para esquerda
         self.tiros = []
@@ -54,6 +54,7 @@ class Player:
         self.vidas = 3
         self.invencivel = 0  # frames de invencibilidade após levar dano
         self.vel_x = 0
+        self.descendo = 0
 
     # Propriedades hitbox jogador
     @property
@@ -102,7 +103,12 @@ class Player:
         # Aplica o movimento na posição X
         self.x += self.vel_x
 
-        # Pulo (Espaço ou Seta para Cima)
+        # Descer da plataforma: S + Espaço
+        if teclas[pygame.K_s] and teclas[pygame.K_SPACE] and self.no_chao:
+            self.descendo = 5
+            self.no_chao = False
+
+        # Pulo 
         if teclas[pygame.K_SPACE] and self.no_chao:
             self.vel_y = self.forca_pulo
             self.no_chao = False
@@ -111,7 +117,7 @@ class Player:
         if teclas[pygame.K_LALT] and self.no_chao:
             if not self.deitado:
                 self.deitado = True
-                self.altura = 30  # Altura reduzida
+                self.altura = 20  # Altura reduzida
                 self.largura = 70 # Largura maior (esticado)
                 self.y += 30  # Empurra para baixo para compensar a perda de altura
         else:
@@ -168,7 +174,21 @@ class Player:
 
         # Aplica gravidade
         self.vel_y += self.gravidade
+        y_antes = self.y + self.altura
         self.y += self.vel_y
+        self.no_chao = False
+
+        # Pousa em cima das plataformas
+        for p in plataformas:
+            if (self.vel_y >= 0
+                    and self.descendo == 0
+                    and y_antes <= p.top
+                    and self.y + self.altura >= p.top
+                    and self.rect.right > p.left
+                    and self.rect.left < p.right):
+                self.y = p.top - self.altura
+                self.vel_y = 0
+                self.no_chao = True
 
         # Limite temporário do chão
         if self.y + self.altura >= CHAO_Y:
@@ -181,6 +201,9 @@ class Player:
 
         if self.invencivel > 0:
             self.invencivel -= 1
+
+        if self.descendo > 0:
+            self.descendo -= 1
 
         # Remove tiros que saíram muito longe do jogador (mundo)
         for tiro in self.tiros[:]:

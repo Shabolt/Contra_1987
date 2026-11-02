@@ -26,13 +26,46 @@ class Stage_1:
         self.escala_y = nova_altura / orig_h
 
         # Posição de spawn do player (X, Y) na proporção da tela
-        self.spawn_pos = (150, 450)
+        self.spawn_pos = (1800, 200)
 
         # Definição das plataformas do stage 1
         self.plataformas = [
-              
+            #Template chunk de grama
+            #pygame.Rect(x, y, 33, 1)
+            
+            #água
+            pygame.Rect(1, 217, 1720, 1),
+
+            #Seção 1 (pré-ponte 1)
+            pygame.Rect(32, 100, 730, 1),
+            pygame.Rect(159, 131, 95, 1),
+            pygame.Rect(416, 131, 63, 1),
+            pygame.Rect(640, 145, 95, 1),
+            pygame.Rect(255, 163, 33, 1),
+            pygame.Rect(351, 163, 33, 1),
+            pygame.Rect(288, 193, 63, 1),
+            pygame.Rect(608, 198, 63, 1),
+
+            #Seção 2 (pós-ponte 2)
+            pygame.Rect(1376, 68, 512, 1),
+            pygame.Rect(2047, 68, 161, 1), 
+            pygame.Rect(1184, 100, 256, 1),
+            pygame.Rect(1856, 100, 223, 1),
+            pygame.Rect(2240, 100, 64, 1),
+            pygame.Rect(1600, 132, 223, 1),
+            pygame.Rect(2176, 132, 95, 1),
+            pygame.Rect(1503, 149, 63, 1),
+            pygame.Rect(2111, 149, 33, 1),
+            pygame.Rect(1920, 164, 64, 1),
+            pygame.Rect(2016, 164, 64, 1),
+            pygame.Rect(1408, 197, 95, 1),
+            pygame.Rect(1728, 197, 190, 1),
+
+
         ]
 
+    # Desenha o cenário, player e inimigos na tela, ajustando 
+    # pela posição da câmera
     def desenhar(self, tela, camera_x, jogador, inimigos):
         if camera_x < 0:
             camera_x = 0
@@ -42,6 +75,9 @@ class Stage_1:
         # 1. Desenha o fundo com o recorte da câmera
         area_recorte = pygame.Rect(camera_x, 0, LARGURA, ALTURA)
         tela.blit(self.background, (0, 0), area_recorte)
+        for p in self.obter_plataformas_tela(camera_x):
+            # Desenha as plataformas em vermelho para depuração (remover depois)
+            pygame.draw.rect(tela, (255, 0, 0), p)  
 
         # 2. Desenha o player ajustado pela câmera
         jogador.desenhar(tela, camera_x)
@@ -49,6 +85,8 @@ class Stage_1:
         # 3. Desenha os inimigos ajustados pela câmera
         inimigos.desenhar(tela, camera_x)
 
+    # Retorna uma lista de retângulos das plataformas ajustadas
+    # para a tela, considerando a posição da câmera
     def obter_plataformas_tela(self, camera_x):
         plataformas_ajustadas = []
         for p in self.plataformas:
