@@ -61,6 +61,28 @@ class Stage_1:
             pygame.Rect(1408, 197, 95, 1),
             pygame.Rect(1728, 197, 190, 1),
 
+            #Seção 3 (precipícios)
+            pygame.Rect(2624, 67, 64, 1),
+            pygame.Rect(2369, 100, 64, 1),
+            pygame.Rect(2593, 100, 64, 1),
+            pygame.Rect(2721, 100, 64, 1),
+            pygame.Rect(2337, 130, 64, 1),
+            pygame.Rect(2464, 130, 64, 1),
+            pygame.Rect(2753, 130, 161, 1),
+            pygame.Rect(2658, 146, 33, 1),
+            pygame.Rect(2498, 160, 95, 1),
+            pygame.Rect(2462, 195, 33, 1),
+            pygame.Rect(2626, 195, 33, 1),
+            pygame.Rect(2848, 195, 95, 1),
+            pygame.Rect(2979, 164, 64, 1),
+
+            #Seção 4 (portão)
+            pygame.Rect(3137, 100, 131, 1),
+            pygame.Rect(3072, 130, 64, 1),
+            pygame.Rect(3264, 130, 33, 1),
+            pygame.Rect(3169, 149, 95, 1),
+            pygame.Rect(3297, 164, 33, 1),
+            pygame.Rect(3137, 195, 231, 1),
 
         ]
 
