@@ -31,8 +31,8 @@ class Bullet:
         self.x += self.vel_x
         self.y += self.vel_y
 
-    def desenhar(self, tela):
-        pygame.draw.rect(tela, (255, 255, 0), (self.x, self.y, self.largura, self.altura))
+    def desenhar(self, tela, camera_x):
+        pygame.draw.rect(tela, (255, 255, 0), (self.x - camera_x, self.y, self.largura, self.altura))
 
 class Player:
     def __init__(self, x, y):
@@ -43,7 +43,7 @@ class Player:
         self.velocidade = 5
         self.vel_y = 0
         self.gravidade = 0.5
-        self.forca_pulo = -12
+        self.forca_pulo = -16
         self.no_chao = False
         self.direcao = 1  # 1 para direita, -1 para esquerda
         self.tiros = []
@@ -54,6 +54,7 @@ class Player:
         self.vidas = 3
         self.invencivel = 0  # frames de invencibilidade após levar dano
         self.vel_x = 0
+        self.descendo = 0
 
     # Propriedades hitbox jogador
     @property
@@ -77,7 +78,7 @@ class Player:
         self.vel_y = 0
         self.no_chao = False
 
-    def atualizar(self, teclas):
+    def atualizar(self, teclas, plataformas):
         # Captura as teclas
         teclas = pygame.key.get_pressed()
 
@@ -102,7 +103,12 @@ class Player:
         # Aplica o movimento na posição X
         self.x += self.vel_x
 
-        # Pulo (Espaço ou Seta para Cima)
+        # Descer da plataforma: S + Espaço
+        if teclas[pygame.K_s] and teclas[pygame.K_SPACE] and self.no_chao:
+            self.descendo = 5
+            self.no_chao = False
+
+        # Pulo 
         if teclas[pygame.K_SPACE] and self.no_chao:
             self.vel_y = self.forca_pulo
             self.no_chao = False
@@ -111,7 +117,7 @@ class Player:
         if teclas[pygame.K_LALT] and self.no_chao:
             if not self.deitado:
                 self.deitado = True
-                self.altura = 30  # Altura reduzida
+                self.altura = 20  # Altura reduzida
                 self.largura = 70 # Largura maior (esticado)
                 self.y += 30  # Empurra para baixo para compensar a perda de altura
         else:
@@ -168,7 +174,21 @@ class Player:
 
         # Aplica gravidade
         self.vel_y += self.gravidade
+        y_antes = self.y + self.altura
         self.y += self.vel_y
+        self.no_chao = False
+
+        # Pousa em cima das plataformas
+        for p in plataformas:
+            if (self.vel_y >= 0
+                    and self.descendo == 0
+                    and y_antes <= p.top
+                    and self.y + self.altura >= p.top
+                    and self.rect.right > p.left
+                    and self.rect.left < p.right):
+                self.y = p.top - self.altura
+                self.vel_y = 0
+                self.no_chao = True
 
         # Limite temporário do chão
         if self.y + self.altura >= CHAO_Y:
@@ -182,16 +202,19 @@ class Player:
         if self.invencivel > 0:
             self.invencivel -= 1
 
-        # Remove tiros que saíram da tela (horizontal e vertical)
+        if self.descendo > 0:
+            self.descendo -= 1
+
+        # Remove tiros que saíram muito longe do jogador (mundo)
         for tiro in self.tiros[:]:
             tiro.atualizar()
-            if tiro.x < 0 or tiro.x > LARGURA or tiro.y < 0 or tiro.y > ALTURA:
+            if abs(tiro.x - self.x) > LARGURA or tiro.y < -50 or tiro.y > ALTURA + 50:
                 self.tiros.remove(tiro)
 
-    def desenhar(self, tela):
+    def desenhar(self, tela, camera_x):
         # Pisca enquanto está invencível
         piscando = self.invencivel > 0 and (self.invencivel // 5) % 2 == 0
         if not piscando:
-            pygame.draw.rect(tela, AZUL, (self.x, self.y, self.largura, self.altura))
+            pygame.draw.rect(tela, AZUL, (self.x - camera_x, self.y, self.largura, self.altura))
         for tiro in self.tiros:
-            tiro.desenhar(tela)
+            tiro.desenhar(tela, camera_x)
