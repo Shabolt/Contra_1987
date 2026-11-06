@@ -1,5 +1,5 @@
 import pygame
-from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, PRETO, VERDE
+from constants import ALTURA, BRANCO, DEBUG, FPS, LARGURA, PRETO
 from enemies import GerenciadorInimigos
 from player import Player
 from scenario import Stage_1
@@ -14,9 +14,12 @@ fonte_grande = pygame.font.Font(None, 96)
 
 stage1 = Stage_1()
 jogador = Player(stage1.spawn_pos[0], stage1.spawn_pos[1])
-inimigos = GerenciadorInimigos()
+inimigos = GerenciadorInimigos(stage1.obter_spawns(), stage1.obter_caixas_torreta())
 game_over = False
 camera_x = 0
+
+if DEBUG:
+    print("DEBUG: o HUD mostra a coordenada do mouse; use pra preencher self.caixas_torreta (scenario.py).")
 
 running = True
 while running:
@@ -26,7 +29,7 @@ while running:
         # Reinicia o jogo apertando R na tela de game over
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r and game_over:
             jogador = Player(stage1.spawn_pos[0], stage1.spawn_pos[1])
-            inimigos = GerenciadorInimigos()
+            inimigos = GerenciadorInimigos(stage1.obter_spawns(), stage1.obter_caixas_torreta())
             game_over = False
 
     teclas = pygame.key.get_pressed()
@@ -36,7 +39,7 @@ while running:
         jogador.atualizar(teclas, plataformas_atuais)
 
         # Para desligar os inimigos, comente a linha abaixo
-        inimigos.atualizar(jogador, camera_x)
+        inimigos.atualizar(jogador, camera_x, plataformas_atuais)
         
         if jogador.vidas <= 0:
             game_over = True
@@ -54,6 +57,14 @@ while running:
     # HUD
     hud = fonte.render(f"VIDAS: {max(jogador.vidas, 0)}    PONTOS: {inimigos.pontos}", True, BRANCO)
     screen.blit(hud, (20, 20))
+
+    if DEBUG:
+        # Coordenada do mouse no sistema do scenario.py (pra posicionar caixas/spawns)
+        mx, my = pygame.mouse.get_pos()
+        coord = fonte.render(
+            f"MOUSE x: {int((mx + camera_x) / stage1.escala_x)}  y: {int(my / stage1.escala_y)}",
+            True, BRANCO)
+        screen.blit(coord, (20, 55))
 
     if game_over:
         texto = fonte_grande.render("GAME OVER", True, BRANCO)

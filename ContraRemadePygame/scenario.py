@@ -1,7 +1,7 @@
 import os
 
 import pygame
-from constants import ALTURA, LARGURA
+from constants import ALTURA, DEBUG, LARGURA, VERDE
 
 
 class Stage_1:
@@ -46,6 +46,10 @@ class Stage_1:
             pygame.Rect(288, 193, 63, 1),
             pygame.Rect(608, 198, 63, 1),
 
+            #Ponte 1 (liga a plataforma (32, 100) com a (1184, 100); estavam na mesma altura
+            #e faltava o trecho no meio: ajuste o x/largura se a ponte do cenário for diferente)
+            pygame.Rect(762, 100, 422, 1),
+
             #Seção 2 (pós-ponte 2)
             pygame.Rect(1376, 68, 512, 1),
             pygame.Rect(2047, 68, 161, 1), 
@@ -86,6 +90,44 @@ class Stage_1:
 
         ]
 
+        # Pontos de spawn dos inimigos, fixos nas plataformas (como no jogo original).
+        # Formato: (x, y do topo da plataforma, tipo)  -> mesmas coordenadas das plataformas
+        # Dispara quando a borda direita da câmera chega no x do ponto.
+        #   "soldado"  (vermelho): só nas plataformas SUPERIORES. Corre, não atira.
+        #   "atirador" (laranja):  só nas plataformas INFERIORES. Fica parado e atira.
+        self.spawns = [
+            # --- Soldados: plataformas superiores ---
+            (700, 100, "soldado"),    # plataforma (32, 100)
+            (1300, 100, "soldado"),   # plataforma (1184, 100)
+            (1700, 68, "soldado"),    # plataforma (1376, 68)
+            (2150, 68, "soldado"),    # plataforma (2047, 68)
+            (2660, 67, "soldado"),    # plataforma (2624, 67)
+            (2740, 100, "soldado"),   # plataforma (2721, 100)
+            (3200, 100, "soldado"),   # plataforma (3137, 100)
+
+            # --- Atiradores: plataformas inferiores ---
+            (320, 193, "atirador"),   # plataforma (288, 193)
+            (640, 198, "atirador"),   # plataforma (608, 198)
+            (1250, 217, "atirador"),  # nível da água
+            (1440, 197, "atirador"),  # plataforma (1408, 197)
+            (1800, 197, "atirador"),  # plataforma (1728, 197)
+            (2880, 195, "atirador"),  # plataforma (2848, 195)
+            (3250, 195, "atirador"),  # plataforma (3137, 195)
+        ]
+
+        # Caixas prateadas das torretas: (x do centro, y da base) em coordenadas do cenário.
+        # A torreta é gerada automaticamente, na frente da caixa, quando o jogador chega a
+        # 700px dela (GerenciadorInimigos.DISTANCIA_SPAWN_TORRETA). Uma entrada por caixa.
+        # Dica: com DEBUG ligado o HUD mostra a coordenada do mouse; passe o mouse no
+        # centro da caixa e some metade do tamanho_caixa no y pra achar a base.
+        self.tamanho_caixa = 16
+        self.caixas_torreta = [
+            (334, 150),
+            (1584, 140),
+            (2287, 173),
+            (2216, 174)
+        ]
+
     # Desenha o cenário, player e inimigos na tela, ajustando 
     # pela posição da câmera
     def desenhar(self, tela, camera_x, jogador, inimigos):
@@ -97,9 +139,14 @@ class Stage_1:
         # 1. Desenha o fundo com o recorte da câmera
         area_recorte = pygame.Rect(camera_x, 0, LARGURA, ALTURA)
         tela.blit(self.background, (0, 0), area_recorte)
-        for p in self.obter_plataformas_tela(camera_x):
-            # Desenha as plataformas em vermelho para depuração (remover depois)
-            pygame.draw.rect(tela, (255, 0, 0), p)  
+        if DEBUG:
+            # Plataformas em vermelho, spawns em verde e caixas das torretas em ciano
+            for p in self.obter_plataformas_tela(camera_x):
+                pygame.draw.rect(tela, (255, 0, 0), p)
+            for x, y, _tipo in self.obter_spawns():
+                pygame.draw.line(tela, VERDE, (x - camera_x, y - 80), (x - camera_x, y), 3)
+            for caixa in self.obter_caixas_torreta():
+                pygame.draw.rect(tela, (0, 255, 255), caixa.move(-camera_x, 0), 2)
 
         # 2. Desenha o player ajustado pela câmera
         jogador.desenhar(tela, camera_x)
@@ -120,3 +167,15 @@ class Stage_1:
             )
             plataformas_ajustadas.append(rect_tela)
         return plataformas_ajustadas
+
+    # Pontos de spawn em coordenadas de mundo (já escaladas): (x, y_topo, tipo)
+    def obter_spawns(self):
+        return [(int(x * self.escala_x), int(y * self.escala_y), tipo)
+                for x, y, tipo in self.spawns]
+
+    # Retângulos das caixas das torretas em coordenadas de mundo (já escaladas)
+    def obter_caixas_torreta(self):
+        t = self.tamanho_caixa
+        return [pygame.Rect(int((x - t / 2) * self.escala_x), int((y - t) * self.escala_y),
+                            int(t * self.escala_x), int(t * self.escala_y))
+                for x, y in self.caixas_torreta]
