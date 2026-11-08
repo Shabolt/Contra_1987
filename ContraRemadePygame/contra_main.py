@@ -1,8 +1,8 @@
 import pygame
-from constants import ALTURA, BRANCO, CHAO_Y, FPS, LARGURA, PRETO, VERDE
+from constants import ALTURA, BRANCO, DEBUG, FPS, LARGURA, PRETO
 from enemies import GerenciadorInimigos
 from player import Player
-
+from scenario import Stage_1
 
 pygame.init()
 screen = pygame.display.set_mode((LARGURA, ALTURA))
@@ -12,9 +12,14 @@ clock = pygame.time.Clock()
 fonte = pygame.font.Font(None, 36)
 fonte_grande = pygame.font.Font(None, 96)
 
-jogador = Player(100, 300)
-inimigos = GerenciadorInimigos()
+stage1 = Stage_1()
+jogador = Player(stage1.spawn_pos[0], stage1.spawn_pos[1])
+inimigos = GerenciadorInimigos(stage1.obter_spawns(), stage1.obter_caixas_torreta())
 game_over = False
+camera_x = 0
+
+if DEBUG:
+    print("DEBUG: o HUD mostra a coordenada do mouse; use pra preencher self.caixas_torreta (scenario.py).")
 
 running = True
 while running:
@@ -23,26 +28,43 @@ while running:
             running = False
         # Reinicia o jogo apertando R na tela de game over
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r and game_over:
-            jogador = Player(100, 300)
-            inimigos = GerenciadorInimigos()
+            jogador = Player(stage1.spawn_pos[0], stage1.spawn_pos[1])
+            inimigos = GerenciadorInimigos(stage1.obter_spawns(), stage1.obter_caixas_torreta())
             game_over = False
 
-    keys = pygame.key.get_pressed()
+    teclas = pygame.key.get_pressed()
 
     if not game_over:
-        jogador.atualizar(keys)
-        inimigos.atualizar(jogador)
+        plataformas_atuais = stage1.obter_plataformas_tela(0)
+        jogador.atualizar(teclas, plataformas_atuais)
+
+        # Para desligar os inimigos, comente a linha abaixo
+        inimigos.atualizar(jogador, camera_x, plataformas_atuais)
+        
         if jogador.vidas <= 0:
             game_over = True
 
+        # Câmera segue o jogador (1/3 da tela), com clamping nos limites do cenário
+        camera_x = jogador.rect.centerx - LARGURA // 3
+        if camera_x < 0:
+            camera_x = 0
+        elif camera_x > stage1.largura_bg - LARGURA:
+            camera_x = stage1.largura_bg - LARGURA
+
     screen.fill(PRETO)
-    pygame.draw.line(screen, VERDE, (0, CHAO_Y), (LARGURA, CHAO_Y), 2)
-    inimigos.desenhar(screen)
-    jogador.desenhar(screen)
+    stage1.desenhar(screen, camera_x, jogador, inimigos)
 
     # HUD
     hud = fonte.render(f"VIDAS: {max(jogador.vidas, 0)}    PONTOS: {inimigos.pontos}", True, BRANCO)
     screen.blit(hud, (20, 20))
+
+    if DEBUG:
+        # Coordenada do mouse no sistema do scenario.py (pra posicionar caixas/spawns)
+        mx, my = pygame.mouse.get_pos()
+        coord = fonte.render(
+            f"MOUSE x: {int((mx + camera_x) / stage1.escala_x)}  y: {int(my / stage1.escala_y)}",
+            True, BRANCO)
+        screen.blit(coord, (20, 55))
 
     if game_over:
         texto = fonte_grande.render("GAME OVER", True, BRANCO)
