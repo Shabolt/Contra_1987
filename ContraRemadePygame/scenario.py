@@ -108,7 +108,6 @@ class Stage_1:
             # --- Atiradores: plataformas inferiores ---
             (320, 193, "atirador"),   # plataforma (288, 193)
             (640, 198, "atirador"),   # plataforma (608, 198)
-            (1250, 217, "atirador"),  # nível da água
             (1440, 197, "atirador"),  # plataforma (1408, 197)
             (1800, 197, "atirador"),  # plataforma (1728, 197)
             (2880, 195, "atirador"),  # plataforma (2848, 195)
@@ -123,9 +122,9 @@ class Stage_1:
         self.tamanho_caixa = 16
         self.caixas_torreta = [
             (334, 150),
-            (1584, 140),
-            (2287, 173),
-            (2216, 174)
+            (1584, 144),
+            (2282, 177),
+            (2416, 174)
         ]
 
     # Desenha o cenário, player e inimigos na tela, ajustando 
