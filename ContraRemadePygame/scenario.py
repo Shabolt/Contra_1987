@@ -96,23 +96,26 @@ class Stage_1:
         #   "soldado"  (vermelho): só nas plataformas SUPERIORES. Corre, não atira.
         #   "atirador" (laranja):  só nas plataformas INFERIORES. Fica parado e atira.
         self.spawns = [
-            # --- Soldados: plataformas superiores ---
-            (700, 100, "soldado"),    # plataforma (32, 100)
-            (1300, 100, "soldado"),   # plataforma (1184, 100)
-            (1700, 68, "soldado"),    # plataforma (1376, 68)
-            (2150, 68, "soldado"),    # plataforma (2047, 68)
-            (2660, 67, "soldado"),    # plataforma (2624, 67)
-            (2740, 100, "soldado"),   # plataforma (2721, 100)
-            (3200, 100, "soldado"),   # plataforma (3137, 100)
+            # --- Início exato da Fase 1: 2 soldados correndo na plataforma principal superior ---
+            (380, 100, "soldado"),
+            (480, 100, "soldado"),
+
+            # --- Soldados: plataformas superiores seguintes ---
+            (700, 100, "soldado"),    
+            (1300, 100, "soldado"),   
+            (1700, 68, "soldado"),    
+            (2150, 68, "soldado"),    
+            (2660, 67, "soldado"),    
+            (2740, 100, "soldado"),   
+            (3200, 100, "soldado"),   
 
             # --- Atiradores: plataformas inferiores ---
-            (320, 193, "atirador"),   # plataforma (288, 193)
-            (640, 198, "atirador"),   # plataforma (608, 198)
-            (1250, 217, "atirador"),  # nível da água
-            (1440, 197, "atirador"),  # plataforma (1408, 197)
-            (1800, 197, "atirador"),  # plataforma (1728, 197)
-            (2880, 195, "atirador"),  # plataforma (2848, 195)
-            (3250, 195, "atirador"),  # plataforma (3137, 195)
+            (320, 193, "atirador"),   
+            (640, 198, "atirador"),   
+            (1440, 197, "atirador"),  
+            (1800, 197, "atirador"),  
+            (2880, 195, "atirador"),  
+            (3250, 195, "atirador"),  
         ]
 
         # Caixas prateadas das torretas: (x do centro, y da base) em coordenadas do cenário.
@@ -142,7 +145,7 @@ class Stage_1:
         if DEBUG:
             # Plataformas em vermelho, spawns em verde e caixas das torretas em ciano
             for p in self.obter_plataformas_tela(camera_x):
-                pygame.draw.rect(tela, (255, 0, 0), p)
+                pygame.draw.rect(tela, (0, 200, 80), p)
             for x, y, _tipo in self.obter_spawns():
                 pygame.draw.line(tela, VERDE, (x - camera_x, y - 80), (x - camera_x, y), 3)
             for caixa in self.obter_caixas_torreta():

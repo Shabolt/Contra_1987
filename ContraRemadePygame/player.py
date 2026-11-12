@@ -1,38 +1,40 @@
-import math
-
 import pygame
-from constants import ALTURA, AZUL, CHAO_Y, LARGURA, ROXO
+from constants import ALTURA, BRANCO, LARGURA, VERMELHO
+from animations import SpriteManager
 
-
-class Bullet:
-    def __init__(self, x, y, dir_x, dir_y):
+class Tiro:
+    def __init__(self, x, y, direcao_x, direcao_y=0):
         self.x = x
         self.y = y
-        self.velocidade = 10
-        
-        # Se for diagonal, normalizamos o vetor para manter a velocidade constante
-        if dir_x != 0 and dir_y != 0:
-            fator = 1 / math.sqrt(2)
-            self.vel_x = self.velocidade * dir_x * fator
-            self.vel_y = self.velocidade * dir_y * fator
-            self.largura = 8
-            self.altura = 8
-        else:
-            self.vel_x = self.velocidade * dir_x
-            self.vel_y = self.velocidade * dir_y
-            self.largura = 5 if dir_x == 0 else 10
-            self.altura = 10 if dir_x == 0 else 5
+        self.velocidade = 12
+        self.direcao_x = direcao_x
+        self.direcao_y = direcao_y
+        self.raio = 8
+        self.frame_anim = 0.0
 
     @property
     def rect(self):
-        return pygame.Rect(self.x, self.y, self.largura, self.altura)
+        return pygame.Rect(int(self.x - self.raio), int(self.y - self.raio), self.raio * 2, self.raio * 2)
 
     def atualizar(self):
-        self.x += self.vel_x
-        self.y += self.vel_y
+        self.x += self.velocidade * self.direcao_x
+        self.y += self.velocidade * self.direcao_y
+        self.frame_anim += 0.3
+
+    def fora_da_tela(self, camera_x):
+        return self.x < -10000 or self.x > 20000 or self.y < -2000 or self.y > ALTURA + 2000
 
     def desenhar(self, tela, camera_x):
-        pygame.draw.rect(tela, (255, 255, 0), (self.x - camera_x, self.y, self.largura, self.altura))
+        pos_x_tela = self.x - camera_x
+        # Usa explo2 para o tiro do Bill (conforme solicitado nas imagens)
+        imgs = SpriteManager.frames_tiro_bill if hasattr(SpriteManager, 'frames_tiro_bill') and SpriteManager.frames_tiro_bill else []
+        if imgs:
+            img = imgs[int(self.frame_anim) % len(imgs)]
+            tam = 20
+            tela.blit(pygame.transform.scale(img, (tam, tam)), (int(pos_x_tela - tam//2), int(self.y - tam//2)))
+        else:
+            pygame.draw.circle(tela, BRANCO, (int(pos_x_tela), int(self.y)), self.raio)
+
 
 class Player:
     def __init__(self, x, y):
@@ -40,175 +42,185 @@ class Player:
         self.y = y
         self.largura = 40
         self.altura = 60
-        self.velocidade = 5
+        self.vel_x = 0
         self.vel_y = 0
-        self.gravidade = 0.5
-        self.forca_pulo = -16
+        self.gravidade = 0.50  
         self.no_chao = False
+        self.vidas = 3
         self.direcao = 1  # 1 para direita, -1 para esquerda
+
         self.tiros = []
         self.cooldown_tiro = 0
-        self.largura_normal = 40
-        self.altura_normal = 60
-        self.deitado = False
-        self.vidas = 3
-        self.invencivel = 0  # frames de invencibilidade após levar dano
-        self.vel_x = 0
-        self.descendo = 0
+        self.frame_idx = 0.0
+        self.pulo_frame_idx = 0.0
+        self.movendo_flag = False
 
-    # Propriedades hitbox jogador
+        SpriteManager.carregar_tudo()
+
     @property
     def rect(self):
         return pygame.Rect(self.x, self.y, self.largura, self.altura)
 
     def levar_dano(self):
-        # Enquanto estiver invencível, ignora o dano
-        if self.invencivel > 0:
+        self.vidas -= 1
+
+    def atirar(self, teclas):
+        if self.cooldown_tiro > 0:
             return
 
-        self.vidas -= 1
-        self.invencivel = 120  # 2 segundos a 60 FPS
+        cima = teclas[pygame.K_UP] or teclas[pygame.K_w]
+        baixo = teclas[pygame.K_DOWN] or teclas[pygame.K_s]
+        esquerda = teclas[pygame.K_LEFT] or teclas[pygame.K_a]
+        direita = teclas[pygame.K_RIGHT] or teclas[pygame.K_d]
 
-        # Reaparece caindo do topo, em pé
-        self.deitado = False
-        self.largura = self.largura_normal
-        self.altura = self.altura_normal
-        self.x = 100
-        self.y = 0
-        self.vel_y = 0
-        self.no_chao = False
+        dx = float(self.direcao)
+        dy = 0.0
+        fator_diag = 0.7071
+
+        if cima:
+            if esquerda:
+                dx, dy = -fator_diag, -fator_diag
+            elif direita:
+                dx, dy = fator_diag, -fator_diag
+            else:
+                dx, dy = 0.0, -1.0
+        elif baixo and self.no_chao:
+            dx, dy = float(self.direcao), 0.0
+        elif baixo and not self.no_chao:
+            if esquerda:
+                dx, dy = -fator_diag, fator_diag
+            elif direita:
+                dx, dy = fator_diag, fator_diag
+            else:
+                dx, dy = 0.0, 1.0
+        else:
+            if esquerda:
+                dx, dy = -1.0, 0.0
+            elif direita:
+                dx, dy = 1.0, 0.0
+            else:
+                dx, dy = float(self.direcao), 0.0
+
+        origem_x = self.x + self.largura // 2 + (dx * 20)
+        origem_y = self.y + self.altura // 2 + (dy * 20)
+        
+        self.tiros.append(Tiro(origem_x, origem_y, dx, dy))
+        self.cooldown_tiro = 12
 
     def atualizar(self, teclas, plataformas):
-        # Captura as teclas
-        teclas = pygame.key.get_pressed()
-
-        # Movimento Horizontal com travamento autêntico de Contra
-        if self.no_chao:
-            self.vel_x = 0
-
-            if not self.deitado:
-                if teclas[pygame.K_a]:
-                    self.vel_x = -self.velocidade
-                    self.direcao = -1
-
-                elif teclas[pygame.K_d]:
-                    self.vel_x = self.velocidade
-                    self.direcao = 1
-
-        # No ar: o vel_x NÃO é zerado nem modificado pelas teclas A/D.
-                    # Ele mantém rigorosamente o impulso que o jogador tinha ao sair do chão.
-        else:
-            pass
-
-        # Aplica o movimento na posição X
-        self.x += self.vel_x
-
-        # Descer da plataforma: S + Espaço
-        if teclas[pygame.K_s] and teclas[pygame.K_SPACE] and self.no_chao:
-            self.descendo = 5
-            self.no_chao = False
-
-        # Pulo 
-        if teclas[pygame.K_SPACE] and self.no_chao:
-            self.vel_y = self.forca_pulo
-            self.no_chao = False
-
-        # Se deitar + reduz o hitbox
-        if teclas[pygame.K_LALT] and self.no_chao:
-            if not self.deitado:
-                self.deitado = True
-                self.altura = 30  # Altura reduzida
-                self.largura = 70 # Largura maior (esticado)
-                self.y += 30  # Empurra para baixo para compensar a perda de altura
-        else:
-            if self.deitado:
-                # Levanta e ajusta o Y para não afundar no chão
-                self.y -= (60 - 30)
-                self.altura = self.altura_normal
-                self.largura = self.largura_normal
-                self.deitado = False
-
-        # Tiro (Left Control) com suporte a mirar para cima (W)
-        if teclas[pygame.K_LCTRL] and self.cooldown_tiro == 0 and self.no_chao:
-            apontando_cima = teclas[pygame.K_w] and not self.deitado
-            apontando_baixo = teclas[pygame.K_s] and not self.deitado
-            movendo_horizontal = teclas[pygame.K_a] or teclas[pygame.K_d]
-            
-            direcao_x = self.direcao
-            direcao_y = 0
-
-            if apontando_cima and movendo_horizontal:
-                # Diagonal superior
-                direcao_x = self.direcao
-                direcao_y = -1
-                tiro_x = self.x + self.largura if self.direcao == 1 else self.x - 10
-                tiro_y = self.y - 10
-            elif apontando_cima:
-                # Apenas para cima
-                direcao_x = 0
-                direcao_y = -1
-                tiro_x = self.x + self.largura // 2 - 2
-                tiro_y = self.y - 10
-            elif apontando_baixo and movendo_horizontal:
-                # Diagonal inferior
-                direcao_x = self.direcao
-                direcao_y = 1
-                tiro_x = self.x + self.largura if self.direcao == 1 else self.x - 10
-                tiro_y = self.y + self.altura
-            else:
-                # Tiro normal para frente (forçado se estiver deitado)
-                direcao_x = self.direcao
-                direcao_y = 0
-                tiro_x = self.x + self.largura if self.direcao == 1 else self.x - 10
-                offset_y = 15 if self.deitado else self.altura // 2 - 2
-                tiro_y = self.y + offset_y
-
-            self.tiros.append(Bullet(tiro_x, tiro_y, direcao_x, direcao_y))
-            self.cooldown_tiro = 15
-
-        # Aplica gravidade
-        self.vel_y += self.gravidade
-        y_antes = self.y + self.altura
-        self.y += self.vel_y
-        self.no_chao = False
-
-        # Pousa em cima das plataformas
-        for p in plataformas:
-            if (self.vel_y >= 0
-                    and self.descendo == 0
-                    and y_antes <= p.top
-                    and self.y + self.altura >= p.top
-                    and self.rect.right > p.left
-                    and self.rect.left < p.right):
-                self.y = p.top - self.altura
-                self.vel_y = 0
-                self.no_chao = True
-
-        # Limite temporário do chão
-        if self.y + self.altura >= CHAO_Y:
-            self.y = CHAO_Y - self.altura
-            self.vel_y = 0
-            self.no_chao = True
-
         if self.cooldown_tiro > 0:
             self.cooldown_tiro -= 1
 
-        if self.invencivel > 0:
-            self.invencivel -= 1
+        atirando_pressionado = (teclas[pygame.K_z] or teclas[pygame.K_x] or teclas[pygame.K_RCTRL] or teclas[pygame.K_LCTRL])
+        if atirando_pressionado:
+            self.atirar(teclas)
 
-        if self.descendo > 0:
-            self.descendo -= 1
+        velocidade_movimento = 4.2
+        self.movendo_flag = False
+        self.vel_x = 0
 
-        # Remove tiros que saíram muito longe do jogador (mundo)
+        if teclas[pygame.K_LEFT] or teclas[pygame.K_a]:
+            self.vel_x = -velocidade_movimento
+            self.direcao = -1
+            self.movendo_flag = True
+        if teclas[pygame.K_RIGHT] or teclas[pygame.K_d]:
+            self.vel_x = velocidade_movimento
+            self.direcao = 1
+            self.movendo_flag = True
+
+        self.x += self.vel_x
+
+        if teclas[pygame.K_SPACE] and self.no_chao:
+            self.vel_y = -16.5
+            self.no_chao = False
+            self.pulo_frame_idx = 0.0
+
+        y_antes = self.y + self.altura
+        self.vel_y += self.gravidade
+        self.y += self.vel_y
+        self.no_chao = False
+
+        if self.vel_y >= 0:
+            for p in plataformas:
+                if (y_antes <= p.top + 5
+                        and self.y + self.altura >= p.top
+                        and self.x + self.largura > p.left + 5
+                        and self.x < p.right - 5):
+                    self.y = p.top - self.altura
+                    self.vel_y = 0
+                    self.no_chao = True
+                    break
+
+        if not self.no_chao:
+            self.pulo_frame_idx += 0.25
+        else:
+            self.pulo_frame_idx = 0.0
+
+        if self.movendo_flag or atirando_pressionado:
+            self.frame_idx += 0.25
+        else:
+            self.frame_idx = 0.0
+
         for tiro in self.tiros[:]:
             tiro.atualizar()
-            if abs(tiro.x - self.x) > LARGURA or tiro.y < -50 or tiro.y > ALTURA + 50:
+            if tiro.fora_da_tela(0):
                 self.tiros.remove(tiro)
 
     def desenhar(self, tela, camera_x):
-        # Pisca enquanto está invencível
-        piscando = self.invencivel > 0 and (self.invencivel // 5) % 2 == 0
-        if not piscando:
-            pygame.draw.rect(tela, ROXO, (self.x - camera_x, self.y, self.largura, self.altura))
+        pos_x_tela = self.x - camera_x
+        teclas = pygame.key.get_pressed()
+
+        atirando = (self.cooldown_tiro > 0 or teclas[pygame.K_z] or teclas[pygame.K_x] or teclas[pygame.K_RCTRL] or teclas[pygame.K_LCTRL])
+        lista = None
+
+        if not self.no_chao:
+            if self.direcao == 1:
+                lista = SpriteManager.frames_pulo_d
+            else:
+                lista = SpriteManager.frames_pulo_e
+        else:
+            mirando_cima = teclas[pygame.K_UP] or teclas[pygame.K_w]
+            mirando_baixo = teclas[pygame.K_DOWN] or teclas[pygame.K_s]
+
+            if mirando_cima:
+                if getattr(self, 'movendo_flag', False) or atirando:
+                    if self.direcao == 1:
+                        lista = SpriteManager.frames_and_ccd if SpriteManager.frames_and_ccd else SpriteManager.frames_mira_cima_d
+                    else:
+                        lista = SpriteManager.frames_and_cce if SpriteManager.frames_and_cce else SpriteManager.frames_mira_cima_e
+                else:
+                    if self.direcao == 1:
+                        lista = SpriteManager.frames_mira_cima_d
+                    else:
+                        lista = SpriteManager.frames_mira_cima_e
+            elif mirando_baixo and self.no_chao:
+                if self.direcao == 1:
+                    lista = SpriteManager.frames_and_bd if SpriteManager.frames_and_bd else SpriteManager.frames_deitado_d
+                else:
+                    lista = SpriteManager.frames_and_be if SpriteManager.frames_and_be else SpriteManager.frames_deitado_e
+            else:
+                if atirando:
+                    if self.direcao == 1:
+                        lista = SpriteManager.frames_and_cd
+                    else:
+                        lista = SpriteManager.frames_and_ce
+                elif self.vel_x != 0:
+                    if self.direcao == 1:
+                        lista = SpriteManager.frames_andando_d
+                    else:
+                        lista = SpriteManager.frames_andando_e
+                else:
+                    if self.direcao == 1:
+                        lista = SpriteManager.frames_jogador_parado_d
+                    else:
+                        lista = SpriteManager.frames_jogador_parado_e
+
+        if lista:
+            idx = int(self.pulo_frame_idx) if not self.no_chao else int(self.frame_idx)
+            img = lista[idx % len(lista)]
+            tela.blit(pygame.transform.scale(img, (self.largura, self.altura)), (pos_x_tela, self.y))
+        else:
+            pygame.draw.rect(tela, VERMELHO, (pos_x_tela, self.y, self.largura, self.altura))
+
         for tiro in self.tiros:
             tiro.desenhar(tela, camera_x)
