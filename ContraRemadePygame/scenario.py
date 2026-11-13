@@ -1,7 +1,8 @@
 import os
 
 import pygame
-from constants import ALTURA, LARGURA
+from constants import ALTURA, DEBUG, LARGURA, VERDE
+from enemies import BossFinal
 
 
 class Stage_1:
@@ -25,8 +26,9 @@ class Stage_1:
         self.escala_x = nova_largura / orig_w
         self.escala_y = nova_altura / orig_h
 
-        # Posição de spawn do player (X, Y) na proporção da tela
-        self.spawn_pos = (200, 700)
+        # Posição de spawn do player (X, Y) na proporção da tela, em cima da primeira plataforma
+
+        self.spawn_pos = (int(38 * self.escala_x), int(100 * self.escala_y) - 60)
 
         # Definição das plataformas do stage 1
         self.plataformas = [
@@ -45,6 +47,10 @@ class Stage_1:
             pygame.Rect(351, 163, 33, 1),
             pygame.Rect(288, 193, 63, 1),
             pygame.Rect(608, 198, 63, 1),
+
+            #Ponte 1 (liga a plataforma (32, 100) com a (1184, 100); estavam na mesma altura
+            #e faltava o trecho no meio: ajuste o x/largura se a ponte do cenário for diferente)
+            pygame.Rect(762, 100, 422, 1),
 
             #Seção 2 (pós-ponte 2)
             pygame.Rect(1376, 68, 512, 1),
@@ -86,9 +92,60 @@ class Stage_1:
 
         ]
 
+        # Pontos de spawn dos inimigos, fixos nas plataformas (como no jogo original).
+        # Formato: (x, y do topo da plataforma, tipo)  -> mesmas coordenadas das plataformas
+        # Dispara quando a borda direita da câmera chega no x do ponto.
+        #   "soldado"  (vermelho): só nas plataformas SUPERIORES. Corre, não atira.
+        #   "atirador" (laranja):  só nas plataformas INFERIORES. Fica parado e atira.
+        self.spawns = [
+            # --- Início exato da Fase 1: 2 soldados correndo na plataforma principal superior ---
+            (380, 100, "soldado"),
+            (480, 100, "soldado"),
+
+            # --- Soldados: plataformas superiores seguintes ---
+            (700, 100, "soldado"),    
+            (1300, 100, "soldado"),   
+            (1700, 68, "soldado"),    
+            (2150, 68, "soldado"),    
+            (2660, 67, "soldado"),    
+            (2740, 100, "soldado"),   
+            (3200, 100, "soldado"),   
+
+            # --- Atiradores: plataformas inferiores ---
+            (320, 193, "atirador"),   
+            (640, 198, "atirador"),   
+            (1440, 197, "atirador"),  
+            (1800, 197, "atirador"),  
+            (2880, 195, "atirador"),  
+            (3250, 195, "atirador"),  
+        ]
+
+        # Caixas prateadas das torretas: (x do centro, y da base) em coordenadas do cenário.
+        # A torreta é gerada automaticamente, na frente da caixa, quando o jogador chega a
+        # 700px dela (GerenciadorInimigos.DISTANCIA_SPAWN_TORRETA). Uma entrada por caixa.
+        # Dica: com DEBUG ligado o HUD mostra a coordenada do mouse; passe o mouse no
+        # centro da caixa e some metade do tamanho_caixa no y pra achar a base.
+        self.tamanho_caixa = 16
+        self.caixas_torreta = [
+            (334, 150),
+            (1584, 140),
+            (2287, 173),
+            (2216, 174)
+        ]
+
+        # Caixas de power-up: (x do centro, y do centro) em coordenadas do cenário
+        # (é o que o HUD de DEBUG mostra com o mouse em cima da caixa).
+        # Ao levar um tiro explodem e podem soltar o power-up H ou S.
+        self.tamanho_caixa_powerup = 16
+        self.caixas_powerup = [
+            (1264, 141),
+            (1648, 109),
+            (1840, 109),
+        ]
+
     # Desenha o cenário, player e inimigos na tela, ajustando 
     # pela posição da câmera
-    def desenhar(self, tela, camera_x, jogador, inimigos):
+    def desenhar(self, tela, camera_x, jogador, inimigos, powerups=None):
         if camera_x < 0:
             camera_x = 0
         elif camera_x > self.largura_bg - LARGURA:
@@ -97,9 +154,18 @@ class Stage_1:
         # 1. Desenha o fundo com o recorte da câmera
         area_recorte = pygame.Rect(camera_x, 0, LARGURA, ALTURA)
         tela.blit(self.background, (0, 0), area_recorte)
-        for p in self.obter_plataformas_tela(camera_x):
-            # Desenha as plataformas em vermelho para depuração (remover depois)
-            pygame.draw.rect(tela, (255, 0, 0), p)  
+        if DEBUG:
+            # Plataformas em vermelho, spawns em verde e caixas das torretas em ciano
+            for p in self.obter_plataformas_tela(camera_x):
+                pygame.draw.rect(tela, (0, 200, 80), p)
+            for x, y, _tipo in self.obter_spawns():
+                pygame.draw.line(tela, VERDE, (x - camera_x, y - 80), (x - camera_x, y), 3)
+            for caixa in self.obter_caixas_torreta():
+                pygame.draw.rect(tela, (0, 255, 255), caixa.move(-camera_x, 0), 2)
+
+        # Caixas de power-up (explosão) e itens H/S caindo
+        if powerups is not None:
+            powerups.desenhar(tela, camera_x)
 
         # 2. Desenha o player ajustado pela câmera
         jogador.desenhar(tela, camera_x)
@@ -120,3 +186,25 @@ class Stage_1:
             )
             plataformas_ajustadas.append(rect_tela)
         return plataformas_ajustadas
+
+    # Pontos de spawn em coordenadas de mundo (já escaladas): (x, y_topo, tipo)
+    def obter_spawns(self):
+        return [(int(x * self.escala_x), int(y * self.escala_y), tipo)
+                for x, y, tipo in self.spawns]
+
+    # Retângulos das caixas das torretas em coordenadas de mundo (já escaladas)
+    def obter_caixas_torreta(self):
+        t = self.tamanho_caixa
+        return [pygame.Rect(int((x - t / 2) * self.escala_x), int((y - t) * self.escala_y),
+                            int(t * self.escala_x), int(t * self.escala_y))
+                for x, y in self.caixas_torreta]
+
+    # Retângulos das caixas de power-up em coordenadas de mundo (já escaladas)
+    def obter_caixas_powerup(self):
+        t = self.tamanho_caixa_powerup
+        return [pygame.Rect(int((x - t / 2) * self.escala_x), int((y - t / 2) * self.escala_y),
+                            int(t * self.escala_x), int(t * self.escala_y))
+                for x, y in self.caixas_powerup]
+
+    def criar_boss(self):
+        return BossFinal(self.escala_x, self.escala_y)
