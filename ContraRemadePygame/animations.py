@@ -1,25 +1,65 @@
 import os
 import pygame
 
+# ---------------------------------------------------------------------------
+# Configuração dos sprites do player
+# ---------------------------------------------------------------------------
+# Altura (em pixels) do sprite do player PARADO. Todos os outros frames usam
+# a mesma escala, então o personagem tem o mesmo "tamanho de pixel" em todas
+# as poses. Use None para manter o tamanho original dos arquivos.
+PLAYER_ALTURA = None
+
+# Remove as bordas transparentes de cada frame antes de uniformizar. Evita que
+# o player "pule" na tela por causa de margens diferentes entre as imagens.
+RECORTAR_TRANSPARENCIA = True
+
+EXTENSOES = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp")
+
+
+def _espelhar(frames):
+    return [pygame.transform.flip(f, True, False) for f in frames]
+
+
+def _placeholder(cor=(255, 0, 255), tamanho=(32, 48)):
+    """Sprite provisório visível (evita crash quando falta imagem)."""
+    surf = pygame.Surface(tamanho, pygame.SRCALPHA)
+    surf.fill((*cor, 255))
+    pygame.draw.rect(surf, (0, 0, 0), surf.get_rect(), 2)
+    return surf
+
+
+def _recortar(img):
+    """Corta a área transparente em volta do sprite."""
+    rect = img.get_bounding_rect()
+    if rect.width == 0 or rect.height == 0 or rect.size == img.get_size():
+        return img
+    return img.subsurface(rect).copy()
+
+
 class SpriteManager:
     carregado = False
 
     img_player = None
+    # Tamanho (largura, altura) comum a TODOS os frames do player.
+    # Os frames ficam alinhados pelos pés (embaixo) e centralizados na horizontal,
+    # então desenhe o player usando midbottom como âncora.
+    player_tamanho = (0, 0)
+
     frames_jogador_parado_d = []
     frames_jogador_parado_e = []
     frames_andando_d = []
     frames_andando_e = []
-    
-    frames_and_cd = []  
-    frames_and_ce = []  
-    frames_and_ccd = [] 
-    frames_and_cce = [] 
-    frames_and_bd = []  
-    frames_and_be = []  
+
+    frames_and_cd = []
+    frames_and_ce = []
+    frames_and_ccd = []
+    frames_and_cce = []
+    frames_and_bd = []
+    frames_and_be = []
 
     frames_pulo_d = []
     frames_pulo_e = []
-    
+
     frames_mira_cima_d = []
     frames_mira_cima_e = []
     frames_mira_diag_cima_d = []
@@ -42,187 +82,280 @@ class SpriteManager:
 
     torretas_sprites = {}
 
+    # ------------------------------------------------------------------
+    # Utilidades internas
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _indexar_imagens():
+        """Mapeia nome (sem extensão, minúsculo) -> caminho do arquivo.
+
+        Assim 'And_CD1' encontra 'and_cd1.png' também no Linux/Mac, onde o
+        sistema de arquivos diferencia maiúsculas de minúsculas. A primeira
+        pasta da lista de prioridade que tiver o arquivo vence.
+        """
+        bases = []
+        for base in (os.path.dirname(os.path.abspath(__file__)), os.getcwd()):
+            if base not in bases:
+                bases.append(base)
+
+        subpastas = [
+            os.path.join("assets", "sprites"),
+            "sprites",
+            "animation",
+            "animations",
+            "assets",
+            ".",
+        ]
+
+        indice = {}
+        for base in bases:
+            for sub in subpastas:
+                pasta = os.path.normpath(os.path.join(base, sub))
+                if not os.path.isdir(pasta):
+                    continue
+                for arq in sorted(os.listdir(pasta)):
+                    caminho = os.path.join(pasta, arq)
+                    if not os.path.isfile(caminho):
+                        continue
+                    nome, ext = os.path.splitext(arq)
+                    if ext.lower() not in EXTENSOES:
+                        continue
+                    indice.setdefault(nome.lower(), caminho)
+        return indice
+
+    @staticmethod
+    def _carregar_arquivo(caminho):
+        try:
+            img = pygame.image.load(caminho)
+            # convert_alpha exige uma janela criada (set_mode); sem ela
+            # o código antigo falhava em silêncio e nenhum sprite carregava.
+            if pygame.display.get_surface() is not None:
+                img = img.convert_alpha()
+            return img
+        except Exception as e:
+            print(f"[SpriteManager] Erro ao carregar '{caminho}': {e}")
+            return None
+
+    @staticmethod
+    def _preparar_frames(frames, largura_alvo, altura_alvo, base_w=None, base_h=None, modo="bottom"):
+        """Prepara e uniformiza frames para dimensões específicas, mantendo tamanho compatível com inimigos."""
+        saida = []
+        for f in frames:
+            if f is None:
+                continue
+            rec = _recortar(f) if RECORTAR_TRANSPARENCIA else f
+            if modo == "stretch":
+                scaled = pygame.transform.scale(rec, (largura_alvo, altura_alvo))
+                saida.append(scaled)
+            elif modo == "bottom":
+                bw = base_w or rec.get_width()
+                bh = base_h or rec.get_height()
+                scale_x = largura_alvo / float(bw) if bw else 1.0
+                scale_y = altura_alvo / float(bh) if bh else 1.0
+                nw = min(largura_alvo, round(rec.get_width() * scale_x))
+                nh = min(altura_alvo, round(rec.get_height() * scale_y))
+                scaled = pygame.transform.scale(rec, (max(1, nw), max(1, nh)))
+                canvas = pygame.Surface((largura_alvo, altura_alvo), pygame.SRCALPHA)
+                canvas.blit(scaled, ((largura_alvo - nw) // 2, altura_alvo - nh))
+                saida.append(canvas)
+            else:
+                saida.append(pygame.transform.scale(rec, (largura_alvo, altura_alvo)))
+        return saida
+
+    @staticmethod
+    def _uniformizar_player(raw, ref):
+        ref_p = _recortar(ref) if RECORTAR_TRANSPARENCIA else ref
+        ref_h = ref_p.get_height()
+        escala = PLAYER_ALTURA / ref_h if (PLAYER_ALTURA and ref_h) else 1.0
+
+        preparados = {}
+        for nome, frames in raw.items():
+            lista = []
+            for f in frames:
+                if RECORTAR_TRANSPARENCIA:
+                    f = _recortar(f)
+                if escala != 1.0:
+                    novo = (max(1, round(f.get_width() * escala)),
+                            max(1, round(f.get_height() * escala)))
+                    f = pygame.transform.scale(f, novo)
+                lista.append(f)
+            preparados[nome] = lista
+
+        todos = [f for lista in preparados.values() for f in lista]
+        largura = max(f.get_width() for f in todos)
+        altura = max(f.get_height() for f in todos)
+
+        saida = {}
+        for nome, lista in preparados.items():
+            novos = []
+            for f in lista:
+                canvas = pygame.Surface((largura, altura), pygame.SRCALPHA)
+                canvas.blit(f, ((largura - f.get_width()) // 2,
+                                altura - f.get_height()))
+                novos.append(canvas)
+            saida[nome] = novos
+        return saida, (largura, altura)
+
+    # ------------------------------------------------------------------
+    # Carregamento principal
+    # ------------------------------------------------------------------
     @classmethod
     def carregar_tudo(cls):
         if cls.carregado:
             return
-        cls.carregado = True
 
-        pastas_candidatas = [
-            os.path.join("assets", "sprites"),
-            os.path.join("sprites"),
-            os.path.join("animation"),
-            os.path.join("animations"),
-            os.path.join("assets"),
-            "."
-        ]
+        indice = cls._indexar_imagens()
+        cache = {}
 
-        def carregar_img(nome):
-            for pasta in pastas_candidatas:
-                for ext in [".png", ".jpg", ".jpeg", ""]:
-                    caminho = os.path.join(pasta, nome + ext)
-                    if os.path.exists(caminho):
-                        try:
-                            return pygame.image.load(caminho).convert_alpha()
-                        except Exception:
-                            pass
+        def carregar_img(*nomes):
+            """Tenta cada nome em ordem e devolve a primeira imagem achada."""
+            for nome in nomes:
+                chave = nome.lower()
+                if chave not in cache:
+                    caminho = indice.get(chave)
+                    cache[chave] = cls._carregar_arquivo(caminho) if caminho else None
+                if cache[chave] is not None:
+                    return cache[chave]
             return None
 
-        # Carregar explo1 para o tiro dos inimigos
+        def sequencia(prefixo, qtd):
+            frames = []
+            for i in range(1, qtd + 1):
+                img = carregar_img(f"{prefixo}{i}")
+                if img is not None:
+                    frames.append(img)
+            return frames
+
+        # ---------------- Tiros e explosões ----------------
         img_explo1 = carregar_img("explo1")
-        if img_explo1:
-            cls.frames_tiro_inimigo = [img_explo1]
-
-        # Carregar explo2 para o tiro do Bill
         img_explo2 = carregar_img("explo2")
-        if img_explo2:
-            cls.frames_tiro_bill = [img_explo2]
-
-        # Carregar explosões adicionais (explo1 a explo4)
-        explo = []
-        for i in range(1, 5):
-            img = carregar_img(f"explo{i}")
-            if img:
-                explo.append(img)
+        explo = sequencia("explo", 4)
         cls.frames_explosao = explo
-        if not cls.frames_tiro_inimigo and explo:
-            cls.frames_tiro_inimigo = [explo[0]]
-        if not cls.frames_tiro_bill and len(explo) > 1:
-            cls.frames_tiro_bill = [explo[1]]
-        elif not cls.frames_tiro_bill and explo:
-            cls.frames_tiro_bill = [explo[0]]
 
-        # Torretas
+        if img_explo1 is not None:
+            cls.frames_tiro_inimigo = [img_explo1]
+        elif explo:
+            cls.frames_tiro_inimigo = [explo[0]]
+
+        if img_explo2 is not None:
+            cls.frames_tiro_bill = [img_explo2]
+        elif explo:
+            cls.frames_tiro_bill = [explo[1] if len(explo) > 1 else explo[0]]
+
+        # ---------------- Torretas ----------------
         nomes_torretas = [
-            "torret_B", "torret_C", "torret_D", "torret_DB", "torret_DB2", 
-            "torret_DC", "torret_DC2", "torret_E", "torret_EB", "torret_EB2", 
-            "torret_EC", "torret_EC2"
+            "torret_B", "torret_C", "torret_D", "torret_DB", "torret_DB2",
+            "torret_DC", "torret_DC2", "torret_E", "torret_EB", "torret_EB2",
+            "torret_EC", "torret_EC2",
         ]
+        cls.torretas_sprites = {}
         for nome in nomes_torretas:
             img_t = carregar_img(nome)
-            if img_t:
+            if img_t is not None:
                 cls.torretas_sprites[nome] = img_t
 
         if not cls.torretas_sprites:
-            img_gen = carregar_img("torret_B") or carregar_img("turret")
-            if img_gen:
+            img_gen = carregar_img("turret")
+            if img_gen is not None:
                 cls.torretas_sprites["torret_B"] = img_gen
 
-        # Jogador Parado
-        img_p = carregar_img("and_1") or carregar_img("Player") or carregar_img("player") or carregar_img("bill")
-        if img_p:
-            cls.img_player = img_p
-            cls.frames_jogador_parado_d = [img_p]
-            cls.frames_jogador_parado_e = [pygame.transform.flip(img_p, True, False)]
+        # ---------------- Player (carrega os frames crus) ----------------
+        base = carregar_img("and_1", "Player", "player", "bill")
+        if base is None:
+            print("[SpriteManager] Sprite do player não encontrado; usando placeholder.")
+            base = _placeholder()
 
-        andando_direita = []
-        for i in range(1, 6):
-            img = carregar_img(f"and_{i}")
-            if img:
-                andando_direita.append(img)
-        if not andando_direita and img_p:
-            andando_direita = [img_p]
+        andando = sequencia("and_", 5) or [base]
+        cd = sequencia("And_CD", 4) or andando
+        ce = sequencia("And_CE", 4)                 # vazio -> espelha cd depois
+        ccd = sequencia("And_CCD", 5)
+        cce = sequencia("And_CCE", 5)
+        bd = sequencia("And_BD", 5)
+        be = sequencia("And_BE", 5)
+        pulo_d = sequencia("CBD_", 4) or andando
+        pulo_e = sequencia("CBE_", 4)               # vazio -> espelha pulo_d depois
+        img_cima = carregar_img("aim_up", "up") or (ccd[0] if ccd else base)
+        img_deit = carregar_img("deit", "down", "deitado", "crouch") or base
+        img_diag = carregar_img("aim_diag_up", "diag_up")
 
-        cls.frames_andando_d = andando_direita
-        cls.frames_andando_e = [pygame.transform.flip(f, True, False) for f in andando_direita]
+        # ---------------- Player (uniformiza em tamanhos equivalentes aos inimigos) ----------------
+        # Inimigos Soldado e Atirador usam largura=40 e altura=60.
+        cls.player_tamanho = (40, 60)
 
-        seq_cd = []
-        for i in range(1, 5):
-            img = carregar_img(f"And_CD{i}")
-            if img:
-                seq_cd.append(img)
-        if not seq_cd:
-            seq_cd = andando_direita
-        cls.frames_and_cd = seq_cd
+        # 1. Parado e Andando: largura 40, altura 60 (mesmo tamanho dos inimigos)
+        norm_parado = cls._preparar_frames([base], 40, 60, base_w=18, base_h=36)
+        cls.img_player = norm_parado[0]
+        cls.frames_jogador_parado_d = norm_parado
+        cls.frames_jogador_parado_e = _espelhar(norm_parado)
 
-        seq_ce = []
-        for i in range(1, 5):
-            img = carregar_img(f"And_CE{i}")
-            if img:
-                seq_ce.append(img)
-        if not seq_ce:
-            seq_ce = [pygame.transform.flip(f, True, False) for f in seq_cd]
-        cls.frames_and_ce = seq_ce
+        norm_andando = cls._preparar_frames(andando, 40, 60, base_w=18, base_h=36)
+        cls.frames_andando_d = norm_andando
+        cls.frames_andando_e = _espelhar(norm_andando)
 
-        def carregar_sequencia(prefixo, qtd=5):
-            lista = []
-            for i in range(1, qtd + 1):
-                img = carregar_img(f"{prefixo}{i}")
-                if img:
-                    lista.append(img)
-            return lista
+        # 2. Tiro Reto: largura 40, altura 60
+        norm_cd = cls._preparar_frames(cd, 40, 60, base_w=18, base_h=35)
+        cls.frames_and_cd = norm_cd
+        cls.frames_and_ce = cls._preparar_frames(ce, 40, 60, base_w=18, base_h=35) if ce else _espelhar(norm_cd)
 
-        cls.frames_and_ccd = carregar_sequencia("And_CCD")
-        cls.frames_and_cce = carregar_sequencia("And_CCE")
-        cls.frames_and_bd = carregar_sequencia("And_BD")
-        cls.frames_and_be = carregar_sequencia("And_BE")
+        # 3. Tiro Diagonal Baixo: largura 40, altura 60
+        norm_bd = cls._preparar_frames(bd, 40, 60, base_w=20, base_h=35)
+        cls.frames_and_bd = norm_bd
+        cls.frames_and_be = cls._preparar_frames(be, 40, 60, base_w=20, base_h=35) if be else _espelhar(norm_bd)
 
-        pulos_d = []
-        for i in range(1, 5):
-            img = carregar_img(f"CBD_{i}")
-            if img:
-                pulos_d.append(img)
-        if not pulos_d:
-            pulos_d = andando_direita
-        cls.frames_pulo_d = pulos_d
+        # 4. Tiro Diagonal Cima: largura 40, altura 75 (cano da arma estendido para cima)
+        norm_ccd = cls._preparar_frames(ccd, 40, 75, base_w=18, base_h=45)
+        cls.frames_and_ccd = norm_ccd
+        cls.frames_and_cce = cls._preparar_frames(cce, 40, 75, base_w=18, base_h=45) if cce else _espelhar(norm_ccd)
 
-        pulos_e = []
-        for i in range(1, 5):
-            img = carregar_img(f"CBE_{i}")
-            if img:
-                pulos_e.append(img)
-        if not pulos_e:
-            pulos_e = [pygame.transform.flip(f, True, False) for f in pulos_d]
-        cls.frames_pulo_e = pulos_e
+        # 5. Mira reta para cima: largura 40, altura 75
+        norm_cima = cls._preparar_frames([img_cima], 40, 75, base_w=18, base_h=45)
+        cls.frames_mira_cima_d = norm_cima
+        cls.frames_mira_cima_e = _espelhar(norm_cima)
 
-        img_cima = carregar_img("aim_up") or carregar_img("up") or img_p
-        cls.frames_mira_cima_d = [img_cima]
-        cls.frames_mira_cima_e = [pygame.transform.flip(img_cima, True, False)]
+        diag_d = norm_ccd[:1] or norm_cima
+        cls.frames_mira_diag_cima_d = diag_d
+        cls.frames_mira_diag_cima_e = _espelhar(diag_d)
 
-        img_deit = carregar_img("down") or carregar_img("deitado") or carregar_img("crouch") or img_p
-        cls.frames_deitado_d = [img_deit]
-        cls.frames_deitado_e = [pygame.transform.flip(img_deit, True, False)]
+        # 6. Pulo (cambalhota): largura 40, altura 40
+        norm_pulo_d = cls._preparar_frames(pulo_d, 40, 40, modo="stretch")
+        cls.frames_pulo_d = norm_pulo_d
+        cls.frames_pulo_e = cls._preparar_frames(pulo_e, 40, 40, modo="stretch") if pulo_e else _espelhar(norm_pulo_d)
 
+        # 7. Deitado / Agachado: largura 70, altura 30
+        norm_deit = cls._preparar_frames([img_deit], 70, 30, modo="stretch")
+        cls.frames_deitado_d = norm_deit
+        cls.frames_deitado_e = _espelhar(norm_deit)
+
+        # ---------------- Inimigos ----------------
         soldados = []
         for i in range(1, 10):
-            img = carregar_img(f"Enemy1D_{i}") or carregar_img(f"enemy_{i}")
-            if img:
+            img = carregar_img(f"Enemy1D_{i}", f"enemy_{i}")
+            if img is not None:
                 soldados.append(img)
         if not soldados:
-            soldados = [img_p]
+            print("[SpriteManager] Sprites do soldado não encontrados; usando placeholder.")
+            soldados = [_placeholder((255, 0, 0))]
         cls.frames_soldado_d = soldados
-        cls.frames_soldado_e = [pygame.transform.flip(f, True, False) for f in soldados]
+        cls.frames_soldado_e = _espelhar(soldados)
 
-        e2d = carregar_img("Enemy2D")
-        e2e = carregar_img("Enemy2E")
-        if e2d:
-            cls.frames_atirador_pe_d = [e2d]
-        if e2e:
-            cls.frames_atirador_pe_e = [e2e]
+        def par(nome_d, nome_e, fallback_d, fallback_e):
+            d = carregar_img(nome_d)
+            e = carregar_img(nome_e)
+            d = [d] if d is not None else None
+            e = [e] if e is not None else None
+            if d is None and e is not None:
+                d = _espelhar(e)
+            if e is None and d is not None:
+                e = _espelhar(d)
+            return (d or fallback_d), (e or fallback_e)
 
-        e2bd = carregar_img("Enemy2BD")
-        e2be = carregar_img("Enemy2BE")
-        if e2bd:
-            cls.frames_atirador_agachado_d = [e2bd]
-        if e2be:
-            cls.frames_atirador_agachado_e = [e2be]
+        cls.frames_atirador_pe_d, cls.frames_atirador_pe_e = par(
+            "Enemy2D", "Enemy2E", cls.frames_soldado_d, cls.frames_soldado_e)
+        cls.frames_atirador_agachado_d, cls.frames_atirador_agachado_e = par(
+            "Enemy2BD", "Enemy2BE", cls.frames_atirador_pe_d, cls.frames_atirador_pe_e)
+        cls.frames_atirador_cima_d, cls.frames_atirador_cima_e = par(
+            "Enemy2CD", "Enemy2CE", cls.frames_atirador_pe_d, cls.frames_atirador_pe_e)
 
-        e2cd = carregar_img("Enemy2CD")
-        e2ce = carregar_img("Enemy2CE")
-        if e2cd:
-            cls.frames_atirador_cima_d = [e2cd]
-        if e2ce:
-            cls.frames_atirador_cima_e = [e2ce]
-
-        if not cls.frames_atirador_pe_d:
-            cls.frames_atirador_pe_d = soldados
-        if not cls.frames_atirador_pe_e:
-            cls.frames_atirador_pe_e = [pygame.transform.flip(f, True, False) for f in soldados]
-        if not cls.frames_atirador_agachado_d:
-            cls.frames_atirador_agachado_d = cls.frames_atirador_pe_d
-        if not cls.frames_atirador_agachado_e:
-            cls.frames_atirador_agachado_e = cls.frames_atirador_pe_e
-        if not cls.frames_atirador_cima_d:
-            cls.frames_atirador_cima_d = cls.frames_atirador_pe_d
-        if not cls.frames_atirador_cima_e:
-            cls.frames_atirador_cima_e = cls.frames_atirador_pe_e
+        # Só marca como carregado no fim, para que uma falha no meio
+        # não deixe o gerenciador "meio carregado" para sempre.
+        cls.carregado = True

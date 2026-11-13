@@ -25,8 +25,9 @@ class Stage_1:
         self.escala_x = nova_largura / orig_w
         self.escala_y = nova_altura / orig_h
 
-        # Posição de spawn do player (X, Y) na proporção da tela
-        self.spawn_pos = (200, 700)
+        # Posição de spawn do player (X, Y) na proporção da tela, em cima da primeira plataforma
+
+        self.spawn_pos = (int(38 * self.escala_x), int(100 * self.escala_y) - 60)
 
         # Definição das plataformas do stage 1
         self.plataformas = [

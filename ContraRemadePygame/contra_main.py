@@ -41,7 +41,7 @@ while running:
         # Para desligar os inimigos, comente a linha abaixo
         inimigos.atualizar(jogador, camera_x, plataformas_atuais)
         
-        if jogador.vidas <= 0:
+        if jogador.y > ALTURA + 100 or jogador.vidas <= 0:
             game_over = True
 
         # Câmera segue o jogador (1/3 da tela), com clamping nos limites do cenário
