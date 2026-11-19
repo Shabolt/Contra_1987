@@ -132,8 +132,8 @@ while running:
         stage1.desenhar(screen, camera_x, jogador, inimigos, powerups)
 
         texto = fonte_grande.render("GAME OVER", True, BRANCO)
-        dica1 = fonte.render("Pressione R para reiniciar", True, BRANCO)
-        dica2 = fonte.render("Pressione ESC para o Menu", True, BRANCO)
+        dica1 = fonte.render("Pressione R para reiniciar.", True, BRANCO)
+        dica2 = fonte.render("Pressione ESC para o Menu.", True, BRANCO)
         screen.blit(texto, texto.get_rect(center=(LARGURA // 2, ALTURA // 2 - 50)))
         screen.blit(dica1, dica1.get_rect(center=(LARGURA // 2, ALTURA // 2 + 20)))
         screen.blit(dica2, dica2.get_rect(center=(LARGURA // 2, ALTURA // 2 + 65)))
